@@ -24,8 +24,9 @@ Usage
   ctxfill --hook --stop-at 80   as a Stop hook: when the window is >= 80 % full, print the
                                  hook JSON that makes Claude keep going with a reason
                                  (e.g. "run /goodnight"); otherwise print nothing
-  --window N                     context window size in tokens (default: $CTXFILL_WINDOW or 200000)
-  --1m                           shorthand for --window 1000000
+  --window N                     context window size in tokens (default: $CTXFILL_WINDOW or 1000000)
+  --1m / --200k                  shorthands for --window 1000000 / 200000
+  --quiet                        no reminder line about the assumed window
 """
 import argparse
 import datetime as dt
@@ -37,7 +38,7 @@ import sys
 HOME = os.path.expanduser("~")
 PROJECTS_DIR = os.path.join(HOME, ".claude", "projects")
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
-DEFAULT_WINDOW = int(os.environ.get("CTXFILL_WINDOW", "200000"))
+DEFAULT_WINDOW = int(os.environ.get("CTXFILL_WINDOW", "1000000"))  # most Claude Code plans today; override below
 
 
 # ---------- finding the transcript ----------
@@ -160,7 +161,7 @@ def human_line(info):
     line = (f"{sid}  {info['model'] or '?':<20} {info['context_tokens']:>9,} tokens  "
             f"{pct:>6} of {info['window']:,}  last turn {short_ts(info['timestamp'])}")
     if info.get("percent") is not None and info["percent"] > 100:
-        line += "  <- exceeds the assumed window; pass --1m or set CTXFILL_WINDOW"
+        line += "  <- exceeds the assumed window; pass --window N or set CTXFILL_WINDOW"
     if info["compactions"]:
         c = info["compactions"][-1]
         line += f"  (compacted {len(info['compactions'])}x, last at {short_ts(c['at'])}: {c['from']:,} -> {c['to']:,})"
@@ -175,13 +176,16 @@ def main(argv=None):
     ap.add_argument("--json", action="store_true", help="JSON output")
     ap.add_argument("--window", type=int, default=DEFAULT_WINDOW, help=f"context window in tokens (default {DEFAULT_WINDOW:,}; env CTXFILL_WINDOW)")
     ap.add_argument("--1m", dest="one_m", action="store_true", help="window = 1,000,000")
+    ap.add_argument("--200k", dest="two_hundred_k", action="store_true", help="window = 200,000")
+    ap.add_argument("--quiet", "-q", action="store_true", help="suppress the reminder about the assumed window")
     ap.add_argument("--hook", action="store_true", help="read hook JSON from stdin; use its transcript_path")
     ap.add_argument("--stop-at", type=float, default=None, metavar="PCT",
                     help="with --hook: when percent >= PCT, print Stop-hook JSON that blocks stopping with a reason")
     ap.add_argument("--reason", default="Context window is at {percent}% ({tokens:,} of {window:,} tokens). Wrap up now: save state to disk and run the close ceremony.",
                     help="reason template for --stop-at ({percent}, {tokens}, {window})")
     args = ap.parse_args(argv)
-    window = 1_000_000 if args.one_m else args.window
+    window = 1_000_000 if args.one_m else (200_000 if args.two_hundred_k else args.window)
+    window_explicit = args.one_m or args.two_hundred_k or args.window != DEFAULT_WINDOW or "CTXFILL_WINDOW" in os.environ
 
     if args.hook:
         try:
@@ -218,6 +222,8 @@ def main(argv=None):
     if not infos:
         print(f"ctxfill: no usage records yet in {desc}", file=sys.stderr)
         return 2
+    if not window_explicit and not args.quiet and not args.json:
+        print(f"(window assumed {window:,} tokens; different plan? --window N, --200k, or export CTXFILL_WINDOW=N)", file=sys.stderr)
     if args.json:
         print(json.dumps(infos if args.all else infos[0], indent=2))
     else:
