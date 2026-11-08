@@ -135,6 +135,8 @@ Claude will ask what you want to happen and wire it. Change your mind later the 
 - The newest transcript in a folder is a heuristic for "the current session". Hooks and status lines
   get the exact path and should use `--hook`.
 - A session does not know its own session id, so from inside a session use the folder form or a hook.
+- In the Claude desktop app, a session's link carries an app id (`local_…`) that is **not** the transcript's
+  id; `ctxfill <that-id>` finds nothing. Use the folder form or `--all` and match by model and last-turn time.
 - Subagent transcripts live beside the parent's and are counted as sessions by `--all`.
 - Tested with Claude Code transcripts of November 2026. The record format is Anthropic's and may change.
 
