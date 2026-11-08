@@ -18,7 +18,7 @@ Usage
   ctxfill <session-id>          that session (searched under ~/.claude/projects)
   ctxfill <transcript.jsonl>    that file
   ctxfill <folder>              newest session of that folder
-  ctxfill --all [folder]        every session of the folder, newest first
+  ctxfill --all [folder]        every session of the folder, by last turn, newest first
   ctxfill --json ...            machine-readable
   ctxfill --hook                read a Claude Code hook's JSON from stdin (uses transcript_path)
   ctxfill --hook --stop-at 80   as a Stop hook: when the window is >= 80 % full, print the
@@ -150,7 +150,7 @@ def short_ts(ts):
     if not ts:
         return "?"
     try:
-        return dt.datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone().strftime("%Y-%m-%d %H:%M")
+        return dt.datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone().strftime("%Y-%m-%d %H:%M %Z")
     except ValueError:
         return ts
 
@@ -222,6 +222,8 @@ def main(argv=None):
     if not infos:
         print(f"ctxfill: no usage records yet in {desc}", file=sys.stderr)
         return 2
+    if args.all:
+        infos.sort(key=lambda i: i["timestamp"] or "", reverse=True)  # by last turn, newest first
     if not window_explicit and not args.quiet and not args.json:
         print(f"(window assumed {window:,} tokens; different plan? --window N, --200k, or export CTXFILL_WINDOW=N)", file=sys.stderr)
     if args.json:

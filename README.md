@@ -18,6 +18,8 @@ From the author:
 >
 > My Fable systems-engineer session found another way and made this tool. Now actions can finally be customized on context usage, and I can stop babysitting and let the windows run themselves.
 
+The first session asked to test it guessed "about 40 %" of its window before running it. The tool read 58.9 %.
+
 ## The fact underneath
 
 A Claude Code session cannot sense its own context. Nothing in the conversation tells the model how
